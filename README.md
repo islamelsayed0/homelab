@@ -19,6 +19,7 @@ This document is the public edition. It covers architecture, design reasoning, a
 - [Performance notes](#performance-notes)
 - [Roadmap](#roadmap)
 - [What this document does not cover](#what-this-document-does-not-cover)
+- [License](#license)
 
 ---
 
@@ -226,3 +227,15 @@ Deliberately **not** on the roadmap: faster internet service. The internal netwo
 Excluded on purpose: internal addressing and network layout, device models and serial numbers, physical security arrangements, specific configuration files, credentials of any kind, and location details.
 
 This is not incidental. An environment writeup that includes a live inventory of what is deployed and what is currently unprotected is a useful document for exactly the wrong audience. The architecture and the reasoning are the parts worth publishing. The operational specifics stay private, and that boundary is itself part of the design.
+
+---
+
+## License
+
+This work — the written documentation and the diagrams — is licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/) (CC BY 4.0). The full legal text is in [LICENSE](LICENSE).
+
+You are free to share and adapt the material for any purpose, including commercially, provided you give appropriate credit, link to the license, and indicate whether changes were made.
+
+Suggested attribution:
+
+> "Home Lab: Architecture, Operations, and Lessons" by [islamelsayed0](https://github.com/islamelsayed0/homelab), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" width="960" height="720" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .ttl  { font-size: 22px; font-weight: 700; fill: #7D8590; }
+    .sub  { font-size: 13px; fill: #8B949E; }
+    .bx   { font-size: 13.5px; font-weight: 700; fill: #FFFFFF; }
+    .bs   { font-size: 11.5px; fill: #E9EEF5; }
+    .svc  { font-size: 11.5px; fill: #D7DEE8; }
+    .note { font-size: 11.5px; fill: #8B949E; }
+    .wire { stroke: #8B949E; stroke-width: 1.6; fill: none; }
+    .dash { stroke: #8B949E; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+  </style>
+
+  <text x="30" y="36" class="ttl">Network and Service Topology</text>
+  <text x="30" y="56" class="sub">Wired paths solid. Wireless and overlay paths dashed. Planned components outlined.</text>
+
+  <rect x="30" y="86" width="210" height="46" rx="7" fill="#3D4650"/>
+  <text x="48" y="106" class="bx">Fiber service</text>
+  <text x="48" y="123" class="bs">1 Gbps symmetric, ONT handoff</text>
+
+  <rect x="30" y="164" width="210" height="58" rx="7" fill="#B5622F"/>
+  <text x="48" y="185" class="bx">ISP gateway</text>
+  <text x="48" y="202" class="bs">routing, DHCP, NAT</text>
+  <text x="48" y="216" class="bs">radios disabled</text>
+  <path class="wire" d="M135,132 L135,164"/>
+
+  <rect x="300" y="164" width="240" height="58" rx="7" fill="#8F5FA8"/>
+  <text x="318" y="185" class="bx">Wi–Fi 7 mesh, three nodes</text>
+  <text x="318" y="202" class="bs">access point mode</text>
+  <text x="318" y="216" class="bs">main node wired, two wireless</text>
+  <path class="wire" d="M240,193 L300,193"/>
+
+  <rect x="30" y="254" width="210" height="58" rx="7" fill="#B5622F"/>
+  <text x="48" y="275" class="bx">16 port Gigabit switch</text>
+  <text x="48" y="292" class="bs">unmanaged</text>
+  <text x="48" y="306" class="bs">single flat layer 2</text>
+  <path class="wire" d="M135,222 L135,254"/>
+
+  <path class="wire" d="M135,312 L135,660"/>
+
+  <rect x="300" y="330" width="240" height="36" rx="7" fill="#3D4650"/>
+  <text x="318" y="353" class="bx">Workstation</text>
+  <path class="wire" d="M135,348 L300,348"/>
+
+  <rect x="300" y="386" width="360" height="176" rx="8" fill="#2E7D6B"/>
+  <text x="318" y="409" class="bx">Control plane host</text>
+  <text x="318" y="431" class="svc">Metrics agent, uptime and endpoint checks</text>
+  <text x="318" y="451" class="svc">Custom security event collector (Python)</text>
+  <text x="318" y="471" class="svc">Consolidated status dashboard</text>
+  <text x="318" y="491" class="svc">Out of band alert delivery to phone</text>
+  <text x="318" y="511" class="svc">Knowledge vault sync</text>
+  <text x="318" y="533" class="svc">Agent Rooms v2 over SQLite, coordinating</text>
+  <text x="318" y="550" class="svc">Claude Code, Codex CLI and OpenClaw</text>
+  <path class="wire" d="M135,474 L300,474"/>
+
+  <rect x="700" y="414" width="234" height="52" rx="7" fill="#3D4650" stroke="#8B949E" stroke-width="1"/>
+  <text x="716" y="435" class="bx">External dead man switch</text>
+  <text x="716" y="453" class="bs">off site, survives host failure</text>
+  <path class="dash" d="M660,440 L700,440"/>
+
+  <rect x="300" y="582" width="360" height="122" rx="8" fill="#2F6FB5"/>
+  <text x="318" y="605" class="bx">Proxmox VE node</text>
+  <text x="318" y="626" class="svc">VM: Rocky Linux, RHCSA study environment</text>
+  <text x="318" y="646" class="svc">VM: Home Assistant OS, smart home control</text>
+  <text x="318" y="666" class="svc">VM: Docker host, container workloads</text>
+  <text x="318" y="690" class="svc">All guests snapshotted at known good states</text>
+  <path class="wire" d="M135,643 L300,643"/>
+
+  <rect x="700" y="600" width="234" height="66" rx="7" fill="#3D4650" stroke="#8B949E" stroke-width="1"/>
+  <text x="716" y="621" class="bx">Backup target</text>
+  <text x="716" y="638" class="bs">nightly guest backups</text>
+  <text x="716" y="654" class="bs">rotating copy kept off site</text>
+  <path class="wire" d="M660,632 L700,632"/>
+
+  <rect x="700" y="254" width="234" height="66" rx="7" fill="#3D4650" stroke="#8B949E" stroke-width="1"/>
+  <text x="716" y="275" class="bx">Tailscale overlay</text>
+  <text x="716" y="292" class="bs">the only remote access path</text>
+  <text x="716" y="308" class="bs">no inbound port forwarding</text>
+  <path class="dash" d="M700,300 C610,312 580,352 580,386"/>
+  <path class="dash" d="M817,320 L817,390 C817,560 730,560 690,600"/>
+</svg>

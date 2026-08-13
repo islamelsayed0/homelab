@@ -1,6 +1,6 @@
 # Home Lab: Architecture, Operations, and Lessons
 
-A working home lab built as a study platform for Linux and cloud certification, a smart home control plane, and a place to practice the operational habits that production environments actually require: monitoring, alerting, backup discipline, and change control.
+A working home lab built as a study platform for Linux and cloud certification, a smart home control plane, and a place to practice the operational habits that production environments actually require: monitoring, alerting, backup discipline, and change control. The operational practices here carry over from professionally managing a mixed OS fleet of over 1,000 endpoints, which is where most of them were learned under real consequences.
 
 This document is the public edition. It covers architecture, design reasoning, and the mistakes worth writing down. Operational specifics such as addressing, device inventory, and physical security details are deliberately excluded. See [What this document does not cover](#what-this-document-does-not-cover).
 
@@ -15,9 +15,11 @@ This document is the public edition. It covers architecture, design reasoning, a
 - [Layer 3: Knowledge and agent orchestration](#layer-3-knowledge-and-agent-orchestration)
 - [Design principles](#design-principles)
 - [Lessons learned](#lessons-learned)
+- [Incidents](#incidents)
 - [Troubleshooting playbook](#troubleshooting-playbook)
 - [Performance notes](#performance-notes)
 - [Roadmap](#roadmap)
+- [What this demonstrates](#what-this-demonstrates)
 - [What this document does not cover](#what-this-document-does-not-cover)
 - [License](#license)
 
@@ -41,7 +43,11 @@ A self built rack carrying the compute node, the control plane host, and the wir
 
 Remote access is a Tailscale overlay and nothing else. There is no inbound port forwarding anywhere in the environment, and no service is published to the internet. This is a deliberate constraint rather than a limitation: it removes an entire category of exposure and it costs nothing in usability.
 
-**The honest limitation at this layer:** the switching is unmanaged, so every wired segment shares one broadcast domain. Creating additional SSIDs on consumer mesh hardware gives you separate network names, not isolation, because there is no VLAN tagging to enforce the boundary. Recognising that distinction mattered more than any purchase, because it is the difference between believing you are segmented and actually being segmented. Managed switching is on the roadmap and is the real prerequisite for segmentation.
+**The honest state of this layer:** the wired network currently runs as a single flat segment, and that is a configuration choice rather than a hardware limitation. The switch is a managed unit supporting 802.1Q and port based VLANs along with loop prevention, so the capability is present and simply unused today. A port based VLAN design is already worked out: trusted compute and storage grouped into one segment, separated from a general purpose lane, with both sharing the uplink so internet access is preserved for every device.
+
+Configuration is deliberately deferred until the storage device that justifies the boundary is actually deployed. Segmenting an environment before the thing being segmented exists adds risk without adding protection, because it introduces a new failure mode while protecting nothing that is present yet.
+
+One caveat matters more than the switch configuration itself: overlay VPN tunnels bypass layer 2 isolation entirely. Segmentation at the switch does not by itself isolate devices that share a tailnet, since the overlay builds its own reachability on top of whatever the physical network does. Enforcing that boundary requires a separate access control rule at the overlay, not a VLAN.
 
 ---
 
@@ -96,6 +102,8 @@ Infrastructure access for agents is designed around three constraints, and they 
 2. **Reachable only over the private overlay.** Never exposed to the internet.
 3. **Propose and approve on every write.** An agent proposes a change and a human approves it. Nothing that alters infrastructure state executes unattended.
 
+These constraints exist because the threat model is concrete rather than theoretical. Agent frameworks in this category have shipped critical remote code execution vulnerabilities, and community skill registries have been poisoned at scale with malicious packages, which means installing a skill is installing code that runs with the agent's permissions. The controls above are therefore layered rather than resting on a single boundary, because any one of them can be the one that fails and none is strong enough to be the only thing standing. Evaluation of new agent tooling happens in a disposable virtual machine first, and nothing moves to a permanent host until it has been watched there.
+
 The reasoning: an agent with write access to a hypervisor or a home automation controller is an agent that can take down the household network. The approval gate costs a few seconds and removes the entire class of outcome where an automated action does something irreversible at three in the morning.
 
 ---
@@ -122,7 +130,7 @@ These are the rules the lab is actually built on, stated plainly because they ar
 
 ## Lessons learned
 
-**A separate SSID is not a separate network.** Isolation is enforced at layer 2 by VLAN capable switching, not by naming a wireless network something different. Consumer mesh hardware will happily let you build the illusion.
+**A separate SSID is not a separate network.** Isolation is enforced at layer 2 by VLAN tagging, not by naming a wireless network something different. The part that is easy to miss is where the capability has to live. Consumer mesh access points running in access point mode cannot map an SSID to a VLAN even when the switch behind them is fully capable of tagging it, so the tagging has nowhere to originate. Wireless segmentation needs capable access points, not just a capable switch, and treating the switch as sufficient is how you end up with separate network names and a shared broadcast domain.
 
 **One flat network means one compromise radius.** A camera, an appliance, or an untrusted device on the same broadcast domain as a hypervisor management interface is a design decision, whether or not it was made deliberately.
 
@@ -139,6 +147,42 @@ These are the rules the lab is actually built on, stated plainly because they ar
 **Secrets belong in a vault, not a config file.** I learned this the expensive way on an earlier project, through a real credential exposure that required rotating everything and rewriting repository history. The lesson is now encoded in the environment rather than merely remembered.
 
 **Sanitize before the first commit, not after.** Publishing an environment writeup and cleaning it in a later commit leaves the original permanently recoverable in git history. The redaction has to happen before the repository exists.
+
+---
+
+## Incidents
+
+These are drawn from actual failures in this environment rather than from hypotheticals, which is why the uninteresting details are left in.
+
+### Monitoring that was silently dead
+
+**Symptom.** An external dead man switch is configured so the monitoring host checks in on a schedule and an outside service raises an alert if the check in stops arriving. The alert fired. Working backwards from it, the check in had been failing for roughly twenty hours and nobody had noticed.
+
+**Initial read.** I assumed the monitoring host had gone down or lost its network path, since that is the exact failure the dead man switch exists to catch. I went looking for a dead host.
+
+**Root cause.** The host was fine and had been fine the whole time. A placeholder value had been left in the credential store instead of the real check in identifier, so the heartbeat was being posted to nothing. From the host's side everything looked correct: the scheduled job ran on time, it reported success, and it had been reporting success into the void for most of a day.
+
+**Fix.** I corrected the stored value, then verified the whole path end to end by deliberately stopping the heartbeat and confirming that an alert actually arrived.
+
+**What changed afterward.** No monitoring component is considered working until its alert path has been tested by deliberately triggering it. Configuration that references an external identifier is verified against the live service rather than assumed correct once it has been written down.
+
+The broader lesson is that monitoring can fail in a way that looks identical to everything being healthy, which is why at least one check has to live outside the system it watches.
+
+### Broadcast storm from a cabling loop
+
+**Symptom.** While cabling the switch for the first time, a machine came up with a self assigned 169.254.x.x address instead of a lease. It was physically connected and nothing was answering its DHCP request.
+
+**Initial read.** A self assigned address usually points at DHCP, so I started on the gateway and its lease configuration. That was the wrong end of the problem, and it cost time.
+
+**Root cause.** Two separate physical faults. The first was an uplink cable that was not fully seated, which accounted for the missing lease. The second, found while tracing the first, was a redundant cable run that had created a physical loop between two switch ports. Switches flood broadcast traffic out every port when the destination is unknown, and in a loop that frame comes back and is flooded again, circulating and multiplying until it saturates the segment.
+
+**Fix.** I seated the uplink properly, removed the redundant run, and enabled loop prevention on the switch. Spanning Tree Protocol prevents this class of failure by detecting redundant paths and blocking one of them, leaving a loop free topology, then unblocking the backup path if the active one fails.
+
+Worth naming the connection explicitly: STP runs a spanning tree algorithm over the switch topology graph. It is the same algorithm taught in a data structures course, applied to physical hardware instead of an abstract graph, and seeing it show up as a real outage is a better argument for the theory than any assignment was.
+
+**What changed afterward.** Loop prevention is enabled on the switch. Cables are labeled at both ends. One cable gets seated fully before the next one is handled, rather than fanning several in at once and sorting it out afterwards.
+
+Verify physical topology before suspecting configuration, because the cheapest explanation is usually a cable.
 
 ---
 
@@ -213,12 +257,30 @@ Ordered by value delivered rather than by how interesting the project is. The un
 | 1 | Automated backup chain with an off site copy | Closes the largest structural risk. Everything else assumes the data survives. |
 | 2 | Recovery runbook plus a tested restore | Converts backup from theory into verified capability |
 | 3 | Power protection with graceful shutdown integration | Unclean shutdown is the most common cause of hypervisor filesystem damage |
-| 4 | Managed switching and VLAN segmentation | The prerequisite for real isolation. The genuine reason to move off consumer gear. |
+| 4 | VLAN segmentation configuration | The switch already supports it. The prerequisite is configuration time and the storage tier that justifies the boundary, not a hardware purchase. |
 | 5 | DNS filtering, centralised logging, secrets vault | Fills the remaining service and operational gaps |
 | 6 | Multi node cluster | Quorum, live migration, and failover are the next real learning step |
 | 7 | Multigig internal networking | Only once local transfers actually saturate Gigabit |
 
 Deliberately **not** on the roadmap: faster internet service. The internal network is the constraint, not the circuit, and buying bandwidth to solve a switching problem is how labs get expensive without getting better.
+
+---
+
+## What this demonstrates
+
+| Capability | Evidence |
+|---|---|
+| Linux administration | Rocky Linux RHCSA guest, rebuilt from snapshot, in [Layer 1](#layer-1-compute-and-virtualization) |
+| Type 1 virtualization | Proxmox VE host and snapshot discipline in [Layer 1](#layer-1-compute-and-virtualization) |
+| Network troubleshooting | Link speed and bottleneck isolation in the [troubleshooting playbook](#troubleshooting-playbook) |
+| Monitoring and alerting design | External dead man switch reasoning in [Layer 2](#layer-2-observability-and-operations) |
+| Backup and recovery reasoning | Three copies and restore testing in [design principles](#design-principles) |
+| Secrets handling | Vault over config files in [lessons learned](#lessons-learned) |
+| Automation with human approval gates | Propose and approve constraint in [Layer 3](#layer-3-knowledge-and-agent-orchestration) |
+| Incident diagnosis | Root cause writeups in [incidents](#incidents) |
+| Technical documentation | This document, including the gaps it names |
+
+**What it does not demonstrate.** This environment is Linux and virtualization focused, and it is worth being straight about the edges of that. It does not cover Windows fleet management, mobile device management, identity administration, or enterprise compliance tooling. Those come from professional experience rather than from this lab, and presenting a home environment as evidence for them would be the same kind of overstatement this document is otherwise trying to avoid.
 
 ---
 

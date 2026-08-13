@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" width="960" height="720" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 748" width="960" height="748" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <style>
     .ttl  { font-size: 22px; font-weight: 700; fill: #7D8590; }
     .sub  { font-size: 13px; fill: #8B949E; }
@@ -31,8 +31,8 @@
 
   <rect x="30" y="254" width="210" height="58" rx="7" fill="#B5622F"/>
   <text x="48" y="275" class="bx">16 port Gigabit switch</text>
-  <text x="48" y="292" class="bs">unmanaged</text>
-  <text x="48" y="306" class="bs">single flat layer 2</text>
+  <text x="48" y="292" class="bs">managed, 802.1Q capable</text>
+  <text x="48" y="306" class="bs">currently one flat segment</text>
   <path class="wire" d="M135,222 L135,254"/>
 
   <path class="wire" d="M135,312 L135,660"/>
@@ -77,4 +77,6 @@
   <text x="716" y="308" class="bs">no inbound port forwarding</text>
   <path class="dash" d="M700,300 C610,312 580,352 580,386"/>
   <path class="dash" d="M817,320 L817,390 C817,560 730,560 690,600"/>
+
+  <text x="30" y="734" class="note">The wired segment is currently flat by choice. Port based VLAN grouping is designed and deferred until the storage tier is deployed.</text>
 </svg>

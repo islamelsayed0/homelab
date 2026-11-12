@@ -47,9 +47,9 @@
   <text x="318" y="451" class="svc">Custom security event collector (Python)</text>
   <text x="318" y="471" class="svc">Consolidated status dashboard</text>
   <text x="318" y="491" class="svc">Out of band alert delivery to phone</text>
-  <text x="318" y="511" class="svc">Knowledge vault sync</text>
-  <text x="318" y="533" class="svc">Agent Rooms v2 over SQLite, coordinating</text>
-  <text x="318" y="550" class="svc">Claude Code, Codex CLI and OpenClaw</text>
+  <text x="318" y="511" class="svc">Knowledge vault v2 (MCP behind OAuth)</text>
+  <text x="318" y="533" class="svc">Agent runtime: scheduled jobs, phone delivery</text>
+  <text x="318" y="550" class="svc">Claude Code and Codex CLI for engineering</text>
   <path class="wire" d="M135,474 L300,474"/>
 
   <rect x="700" y="414" width="234" height="52" rx="7" fill="#3D4650" stroke="#8B949E" stroke-width="1"/>
@@ -68,7 +68,7 @@
   <rect x="700" y="600" width="234" height="66" rx="7" fill="#3D4650" stroke="#8B949E" stroke-width="1"/>
   <text x="716" y="621" class="bx">Backup target</text>
   <text x="716" y="638" class="bs">nightly guest backups</text>
-  <text x="716" y="654" class="bs">rotating copy kept off site</text>
+  <text x="716" y="654" class="bs">off site copy currently down</text>
   <path class="wire" d="M660,632 L700,632"/>
 
   <rect x="700" y="254" width="234" height="66" rx="7" fill="#3D4650" stroke="#8B949E" stroke-width="1"/>

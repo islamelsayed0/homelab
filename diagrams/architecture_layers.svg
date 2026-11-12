@@ -22,8 +22,8 @@
     <rect x="88" y="100" width="8" height="98" fill="#59448C"/>
     <text x="68" y="156" class="code" text-anchor="middle">L3</text>
     <text x="116" y="130" class="lname">Knowledge and Agent Layer</text>
-    <text x="116" y="154" class="litem">Agent Rooms v2 over SQLite  ·  Claude Code  ·  Codex CLI  ·  OpenClaw</text>
-    <text x="116" y="176" class="litem">Central knowledge vault as shared memory and export target</text>
+    <text x="116" y="154" class="litem">Scheduled agent runtime  ·  Claude Code  ·  Codex CLI</text>
+    <text x="116" y="176" class="litem">Knowledge vault v2: nightly compiled wiki, single committer, MCP</text>
     <text x="712" y="140" class="rlab">Automation and documentation</text>
     <text x="712" y="158" class="rlab">workflow stops. No production</text>
     <text x="712" y="176" class="rlab">impact.</text>
@@ -37,7 +37,7 @@
     <text x="68" y="272" class="code" text-anchor="middle">L2</text>
     <text x="116" y="246" class="lname">Observability and Operations</text>
     <text x="116" y="270" class="litem">Metrics  ·  uptime checks  ·  custom security event collector</text>
-    <text x="116" y="292" class="litem">External dead man switch  ·  out of band alerting  ·  status dashboard</text>
+    <text x="116" y="292" class="litem">Dead man switch  ·  backup watchdog  ·  login check  ·  status dashboard</text>
     <text x="712" y="256" class="rlab">Everything keeps running but</text>
     <text x="712" y="274" class="rlab">blind. Silent failures, no</text>
     <text x="712" y="292" class="rlab">alerts.</text>

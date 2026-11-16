@@ -37,7 +37,7 @@ The rule that falls out of this: **anything the household depends on is producti
 
 ## Layer 0: Physical and network
 
-A self built rack carrying the compute node, the control plane host, and the wired distribution layer. Internet is 1 Gbps symmetric fiber. Wireless is a Wi‑Fi 7 mesh running in access point mode behind the gateway, so routing, DHCP, and NAT stay in one place instead of being split across two devices.
+A self built rack carrying the compute node, the control plane host, and the wired distribution layer. Internet is 1 Gbps symmetric fiber. In November 2026 the ISP supplied router and the consumer wireless mesh were both replaced by one UniFi stack: a gateway that takes the handoff from the optical terminal and does routing, DHCP, and NAT, and managed access points for wireless. The same platform carries the cameras and the doorbell. One controller now sees the gateway, the wireless, and those devices, where before there were two vendors and two apps. Cameras and a doorbell are household services, so they fall under the production rule from the first day.
 
 ![Network and service topology](diagrams/network_topology.svg)
 
@@ -48,6 +48,8 @@ Remote access is a Tailscale overlay and nothing else. There is no inbound port 
 **The honest state of this layer:** the wired network currently runs as a single flat segment, and that is a configuration choice rather than a hardware limitation. The switch is a managed unit supporting 802.1Q and port based VLANs along with loop prevention, so the capability is present and simply unused today. A port based VLAN design is already worked out: trusted compute and storage grouped into one segment, separated from a general purpose lane, with both sharing the uplink so internet access is preserved for every device.
 
 Configuration is deliberately deferred until the storage device that justifies the boundary is actually deployed. Segmenting an environment before the thing being segmented exists adds risk without adding protection, because it introduces a new failure mode while protecting nothing that is present yet.
+
+That reasoning has a new problem. Cameras and a doorbell are now on the network, and they are exactly the kind of device the flat network lesson below warns about. The access points can map a wireless network to a VLAN, which the old mesh could not, so the capability exists end to end for the first time. The boundary no longer has to wait for storage. The cameras justify it, and the [roadmap](#roadmap) entry now says so.
 
 One caveat matters more than the switch configuration itself: overlay VPN tunnels bypass layer 2 isolation entirely. Segmentation at the switch does not by itself isolate devices that share a tailnet, since the overlay builds its own reachability on top of whatever the physical network does. Enforcing that boundary requires a separate access control rule at the overlay, not a VLAN.
 
@@ -105,7 +107,7 @@ This layer runs AI agents on the control plane host and gives them one shared me
 
 One agent runtime owns all scheduled and unattended work: morning briefings, an inbox watch, the daily login self check, and the weekly host health report. It delivers to a phone over iMessage. Two coding agents (Claude Code and Codex CLI) do the engineering work, interactively and, since November 2026, inside the nightly loop described below. A third agent runtime used earlier in the lab has been retired and stopped, which removed one set of credentials, one scheduler, and one notification channel from the environment.
 
-The knowledge vault was rebuilt in October 2026. Raw notes and agent session summaries land in an inbox, and a smaller, cheaper model compiles them nightly into linked wiki pages. A single committer process owns git for the vault, so no agent writes history directly. An MCP server exposes the vault to chat apps, behind OAuth, through the one funnel endpoint described in [Layer 0](#layer-0-physical-and-network).
+The knowledge vault was rebuilt in October 2026. Raw notes and agent session summaries land in an inbox, and a smaller, cheaper model compiles them nightly into linked wiki pages. A single committer process owns git for the vault, so no agent writes history directly. An MCP server exposes the vault to chat apps, behind OAuth, through the one funnel endpoint described in [Layer 0](#layer-0-physical-and-network). Since November 2026 the morning briefings are archived into the vault every day, and the standing rules for the nightly loop live there as well.
 
 A private web console sits in front of the agent runtime. It is served from the control plane host, reachable only over the overlay, and gated by an access code. It shows what the scheduled jobs did, what failed, and what an agent is asking permission to do. An action that needs approval appears as a card naming the resolved action, and a stop control replaces the send control while a run is in flight. The console does not get its own agent. It is a view onto the one runtime, so there is still one scheduler and one set of credentials.
 
@@ -150,7 +152,7 @@ These are the rules the lab is actually built on, stated plainly because they ar
 
 **Three copies, two media types, one off site.** Nothing is considered protected until that is true. In practice the highest value data in a lab is rarely the virtual machines. It is the accumulated notes, configuration, and documentation, which is also the thing most likely to exist in exactly one place.
 
-**Current honest status: this rule is not met.** Time Machine and restic both run, but they write to partitions on the same physical external drive, and the off site copy job is dead. That is two copies on one medium with nothing off site. The restic repository also had to be started over after the hardware move, because its password was among the secrets that did not migrate. The old repository is kept in case the old keychain is ever unlocked, and until then its history cannot be read. Separate partitions are not separate media: one drive failure takes both. Fixing this is first on the [roadmap](#roadmap).
+**Current honest status: this rule is not met.** Time Machine and restic both run, but they write to partitions on the same physical external drive, and the off site copy job is dead. That is two copies on one medium with nothing off site. The restic repository also had to be started over after the hardware move, because its password was among the secrets that did not migrate. The old repository is kept untouched, but its password is lost, so its history cannot be read. Separate partitions are not separate media: one drive failure takes both. Fixing this is first on the [roadmap](#roadmap).
 
 **An untested backup is a rumour.** Backup jobs that have never been restored from are a belief, not a capability. Restore testing is scheduled work.
 
@@ -166,11 +168,11 @@ These are the rules the lab is actually built on, stated plainly because they ar
 
 ## Lessons learned
 
-**A separate SSID is not a separate network.** Isolation is enforced at layer 2 by VLAN tagging, not by naming a wireless network something different. The part that is easy to miss is where the capability has to live. Consumer mesh access points running in access point mode cannot map an SSID to a VLAN even when the switch behind them is fully capable of tagging it, so the tagging has nowhere to originate. Wireless segmentation needs capable access points, not just a capable switch, and treating the switch as sufficient is how you end up with separate network names and a shared broadcast domain.
+**A separate SSID is not a separate network.** Isolation is enforced at layer 2 by VLAN tagging, not by naming a wireless network something different. The part that is easy to miss is where the capability has to live. Consumer mesh access points running in access point mode cannot map an SSID to a VLAN even when the switch behind them is fully capable of tagging it, so the tagging has nowhere to originate. Wireless segmentation needs capable access points, not just a capable switch, and treating the switch as sufficient is how you end up with separate network names and a shared broadcast domain. This is one of the reasons the wireless later moved to managed access points.
 
 **One flat network means one compromise radius.** A camera, an appliance, or an untrusted device on the same broadcast domain as a hypervisor management interface is a design decision, whether or not it was made deliberately.
 
-**Fiber does not need a modem.** The optical terminal is already a separate device, which means the ISP supplied router is replaceable in a way that cable equipment usually is not. Knowing which handoff is in use decides whether a future upgrade is a purchase or a purchase plus a support call.
+**Fiber does not need a modem.** The optical terminal is already a separate device, which means the ISP supplied router is replaceable in a way that cable equipment usually is not. Knowing which handoff is in use decides whether a future upgrade is a purchase or a purchase plus a support call. That replacement has now happened.
 
 **Real world behaviour beats benchmark numbers.** Being able to game and download large titles simultaneously without visible lag is a stronger signal of network health than whether a speed test reports 550 or 800 Mbps. Speed tests vary by server and by load, and chasing the number is a distraction.
 
@@ -359,7 +361,7 @@ Ordered by value delivered rather than by how interesting the project is. The un
 | 6 | Boundaries for the nightly loop: its own operating system user, resource caps, branch protection, then pull requests | A rule without enforcement was set aside by hand on the day it was written |
 | 7 | Power protection with graceful shutdown integration | Unclean shutdown is the most common cause of hypervisor filesystem damage |
 | 8 | Centralised logging and DNS filtering | Fills the remaining service and operational gaps |
-| 9 | VLAN segmentation configuration | The switch already supports it. The prerequisite is the storage tier that justifies the boundary, not a hardware purchase. |
+| 9 | VLAN segmentation configuration | The switch and the access points both support it. Cameras and a doorbell on a flat network are now the reason, not a future storage tier. |
 | 10 | Multi node cluster, then multigig internal networking | Quorum and failover are the next learning step; multigig only once local transfers saturate Gigabit |
 
 Deliberately **not** on the roadmap: faster internet service. The internal network is the constraint, not the circuit, and buying bandwidth to solve a switching problem is how labs get expensive without getting better.

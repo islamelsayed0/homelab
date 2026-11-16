@@ -18,15 +18,15 @@
   <text x="48" y="123" class="bs">1 Gbps symmetric, ONT handoff</text>
 
   <rect x="30" y="164" width="210" height="58" rx="7" fill="#B5622F"/>
-  <text x="48" y="185" class="bx">ISP gateway</text>
+  <text x="48" y="185" class="bx">UniFi gateway</text>
   <text x="48" y="202" class="bs">routing, DHCP, NAT</text>
-  <text x="48" y="216" class="bs">radios disabled</text>
+  <text x="48" y="216" class="bs">replaced the ISP router</text>
   <path class="wire" d="M135,132 L135,164"/>
 
   <rect x="300" y="164" width="240" height="58" rx="7" fill="#8F5FA8"/>
-  <text x="318" y="185" class="bx">Wi–Fi 7 mesh, three nodes</text>
-  <text x="318" y="202" class="bs">access point mode</text>
-  <text x="318" y="216" class="bs">main node wired, two wireless</text>
+  <text x="318" y="185" class="bx">UniFi access points</text>
+  <text x="318" y="202" class="bs">managed by the gateway</text>
+  <text x="318" y="216" class="bs">cameras and doorbell alongside</text>
   <path class="wire" d="M240,193 L300,193"/>
 
   <rect x="30" y="254" width="210" height="58" rx="7" fill="#B5622F"/>
@@ -78,5 +78,5 @@
   <path class="dash" d="M700,300 C610,312 580,352 580,386"/>
   <path class="dash" d="M817,320 L817,390 C817,560 730,560 690,600"/>
 
-  <text x="30" y="734" class="note">The wired segment is currently flat by choice. Port based VLAN grouping is designed and deferred until the storage tier is deployed.</text>
+  <text x="30" y="734" class="note">The wired segment is currently flat by choice. VLAN grouping is designed and not yet configured.</text>
 </svg>

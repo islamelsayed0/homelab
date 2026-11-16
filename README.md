@@ -37,7 +37,7 @@ The rule that falls out of this: **anything the household depends on is producti
 
 ## Layer 0: Physical and network
 
-A self built rack carrying the compute node, the control plane host, and the wired distribution layer. Internet is 1 Gbps symmetric fiber. Wireless is a Wi‑Fi 7 mesh running in access point mode behind the gateway, so routing, DHCP, and NAT stay in one place instead of being split across two devices.
+A self built rack carrying the compute node, the control plane host, and the wired distribution layer. Internet is 1 Gbps symmetric fiber. In November 2026 the ISP supplied router and the consumer wireless mesh were both replaced by one UniFi stack: a gateway that takes the handoff from the optical terminal and does routing, DHCP, and NAT, and managed access points for wireless. The same platform carries the cameras and the doorbell. One controller now sees the gateway, the wireless, and those devices, where before there were two vendors and two apps. Cameras and a doorbell are household services, so they fall under the production rule from the first day.
 
 ![Network and service topology](diagrams/network_topology.svg)
 
@@ -48,6 +48,8 @@ Remote access is a Tailscale overlay and nothing else. There is no inbound port 
 **The honest state of this layer:** the wired network currently runs as a single flat segment, and that is a configuration choice rather than a hardware limitation. The switch is a managed unit supporting 802.1Q and port based VLANs along with loop prevention, so the capability is present and simply unused today. A port based VLAN design is already worked out: trusted compute and storage grouped into one segment, separated from a general purpose lane, with both sharing the uplink so internet access is preserved for every device.
 
 Configuration is deliberately deferred until the storage device that justifies the boundary is actually deployed. Segmenting an environment before the thing being segmented exists adds risk without adding protection, because it introduces a new failure mode while protecting nothing that is present yet.
+
+That reasoning has a new problem. Cameras and a doorbell are now on the network, and they are exactly the kind of device the flat network lesson below warns about. The access points can map a wireless network to a VLAN, which the old mesh could not, so the capability exists end to end for the first time. The boundary no longer has to wait for storage. The cameras justify it, and the [roadmap](#roadmap) entry now says so.
 
 One caveat matters more than the switch configuration itself: overlay VPN tunnels bypass layer 2 isolation entirely. Segmentation at the switch does not by itself isolate devices that share a tailnet, since the overlay builds its own reachability on top of whatever the physical network does. Enforcing that boundary requires a separate access control rule at the overlay, not a VLAN.
 
@@ -103,9 +105,11 @@ Log rotation and size caps are also missing. That gap stopped being theoretical 
 
 This layer runs AI agents on the control plane host and gives them one shared memory.
 
-One agent runtime owns all scheduled and unattended work: morning briefings, an inbox watch, the daily login self check, and the weekly host health report. It delivers to a phone over iMessage. Two coding agents (Claude Code and Codex CLI) remain for interactive engineering work. A third agent runtime used earlier in the lab has been retired and stopped, which removed one set of credentials, one scheduler, and one notification channel from the environment.
+One agent runtime owns all scheduled and unattended work: morning briefings, an inbox watch, the daily login self check, and the weekly host health report. It delivers to a phone over iMessage. Two coding agents (Claude Code and Codex CLI) do the engineering work, interactively and, since November 2026, inside the nightly loop described below. A third agent runtime used earlier in the lab has been retired and stopped, which removed one set of credentials, one scheduler, and one notification channel from the environment.
 
-The knowledge vault was rebuilt in October 2026. Raw notes and agent session summaries land in an inbox, and a smaller, cheaper model compiles them nightly into linked wiki pages. A single committer process owns git for the vault, so no agent writes history directly. An MCP server exposes the vault to chat apps, behind OAuth, through the one funnel endpoint described in [Layer 0](#layer-0-physical-and-network).
+The knowledge vault was rebuilt in October 2026. Raw notes and agent session summaries land in an inbox, and a smaller, cheaper model compiles them nightly into linked wiki pages. A single committer process owns git for the vault, so no agent writes history directly. An MCP server exposes the vault to chat apps, behind OAuth, through the one funnel endpoint described in [Layer 0](#layer-0-physical-and-network). Since November 2026 the morning briefings are archived into the vault every day, and the standing rules for the nightly loop live there as well.
+
+A private web console sits in front of the agent runtime. It is served from the control plane host, reachable only over the overlay, and gated by an access code. It shows what the scheduled jobs did, what failed, and what an agent is asking permission to do. An action that needs approval appears as a card naming the resolved action, and a stop control replaces the send control while a run is in flight. The console does not get its own agent. It is a view onto the one runtime, so there is still one scheduler and one set of credentials.
 
 Infrastructure access for agents is designed around three constraints, and they are not negotiable for convenience:
 
@@ -117,6 +121,27 @@ These constraints exist because the threat model is concrete rather than theoret
 
 The reasoning: an agent with write access to a hypervisor or a home automation controller is an agent that can take down the household network. The approval gate costs a few seconds and removes the entire class of outcome where an automated action does something irreversible at three in the morning.
 
+### A nightly loop that proposes and never merges
+
+In November 2026 the lab started on a loop in which agents improve the lab's own repositories overnight. The design splits the work by role so that no single agent can carry a change from idea to the main branch:
+
+| Role | Who | What it may do |
+|---|---|---|
+| Builder | Claude Code | Writes code on its own branch in its own worktree |
+| Reviewer | Codex CLI | Reads the diff cold in a read only sandbox and returns a verdict in a fixed schema |
+| Operator | The scheduled agent runtime | Schedules, reports, and keeps the backlog. Never writes code |
+| Merger | A human | The only one who merges or pushes to the main branch |
+
+The reviewer is a different model from a different vendor on purpose. An independent cold read is a stronger signal than one model checking its own work, and it keeps the loop from depending on one provider.
+
+Memory between runs lives in plain files in each repository: a progress log, a feature list in which every item stays marked unverified until its tests pass and the reviewer approves, and one gate script that compiles, lints, and runs the tests offline. The standing rules live in the knowledge vault, outside the repositories, and the loop cannot write to them.
+
+**What exists today, and nothing more.** The first phase is built: the rules, the gate script, a baseline of 12 tests on a repository that had none, and a runner that takes its proposer and reviewer as configuration values. It has run once, in dry run mode. The builder wrote a set of tests in its own worktree, the gate passed with 42 tests, and the reviewer approved with written reasons. That run loaded six tools and no external connectors, so nothing outside the repository was reachable from it.
+
+**What does not exist yet.** The loop opens no pull requests and has no schedule. It does not run as its own operating system user, and it has no CPU or memory cap. The shell filter in the runner is a pattern match, not a sandbox, so the dedicated user is the real boundary and it is not there. Until it is, the loop stays in dry run.
+
+**The rule is a convention, not a control.** An earlier loop in this lab merged and pushed its own work unattended. It worked, and it is now paused because it contradicts the first rule of the new one. On the same day the no merge rule was written, I told an agent to do one merge and push by hand to clear a blocked branch, and it did, after asking me to confirm the exception. Nothing technical would have stopped it. A rule that depends on every agent choosing to follow it needs branch protection behind it, and that is on the [roadmap](#roadmap).
+
 ---
 
 ## Design principles
@@ -127,7 +152,7 @@ These are the rules the lab is actually built on, stated plainly because they ar
 
 **Three copies, two media types, one off site.** Nothing is considered protected until that is true. In practice the highest value data in a lab is rarely the virtual machines. It is the accumulated notes, configuration, and documentation, which is also the thing most likely to exist in exactly one place.
 
-**Current honest status: this rule is not met.** Time Machine and restic both run, but they write to partitions on the same physical external drive, and the off site copy job is dead. That is two copies on one medium with nothing off site. Separate partitions are not separate media: one drive failure takes both. Fixing this is first on the [roadmap](#roadmap).
+**Current honest status: this rule is not met.** Time Machine and restic both run, but they write to partitions on the same physical external drive, and the off site copy job is dead. That is two copies on one medium with nothing off site. The restic repository also had to be started over after the hardware move, because its password was among the secrets that did not migrate. The old repository is kept untouched, but its password is lost, so its history cannot be read. Separate partitions are not separate media: one drive failure takes both. Fixing this is first on the [roadmap](#roadmap).
 
 **An untested backup is a rumour.** Backup jobs that have never been restored from are a belief, not a capability. Restore testing is scheduled work.
 
@@ -143,11 +168,11 @@ These are the rules the lab is actually built on, stated plainly because they ar
 
 ## Lessons learned
 
-**A separate SSID is not a separate network.** Isolation is enforced at layer 2 by VLAN tagging, not by naming a wireless network something different. The part that is easy to miss is where the capability has to live. Consumer mesh access points running in access point mode cannot map an SSID to a VLAN even when the switch behind them is fully capable of tagging it, so the tagging has nowhere to originate. Wireless segmentation needs capable access points, not just a capable switch, and treating the switch as sufficient is how you end up with separate network names and a shared broadcast domain.
+**A separate SSID is not a separate network.** Isolation is enforced at layer 2 by VLAN tagging, not by naming a wireless network something different. The part that is easy to miss is where the capability has to live. Consumer mesh access points running in access point mode cannot map an SSID to a VLAN even when the switch behind them is fully capable of tagging it, so the tagging has nowhere to originate. Wireless segmentation needs capable access points, not just a capable switch, and treating the switch as sufficient is how you end up with separate network names and a shared broadcast domain. This is one of the reasons the wireless later moved to managed access points.
 
 **One flat network means one compromise radius.** A camera, an appliance, or an untrusted device on the same broadcast domain as a hypervisor management interface is a design decision, whether or not it was made deliberately.
 
-**Fiber does not need a modem.** The optical terminal is already a separate device, which means the ISP supplied router is replaceable in a way that cable equipment usually is not. Knowing which handoff is in use decides whether a future upgrade is a purchase or a purchase plus a support call.
+**Fiber does not need a modem.** The optical terminal is already a separate device, which means the ISP supplied router is replaceable in a way that cable equipment usually is not. Knowing which handoff is in use decides whether a future upgrade is a purchase or a purchase plus a support call. That replacement has now happened.
 
 **Real world behaviour beats benchmark numbers.** Being able to game and download large titles simultaneously without visible lag is a stronger signal of network health than whether a speed test reports 550 or 800 Mbps. Speed tests vary by server and by load, and chasing the number is a distraction.
 
@@ -166,6 +191,10 @@ These are the rules the lab is actually built on, stated plainly because they ar
 **Shared runtimes are shared dependencies.** Installing a second runtime version for one application updated a native library that a different service was still linked against, and that service stopped loading. Separately, a long running service kept running on a binary that had been replaced on disk, and the firewall stopped accepting connections to it until it was restarted. Pin runtimes per application where practical, and restart and verify listeners after any dependency upgrade.
 
 **Every unbounded log is a storage failure waiting for a trigger.**
+
+**A restart loop is not health.** A supervisor that restarts a crashing service forever makes the service look managed. Count the restarts and alert on them.
+
+**An automation that commits everything will eventually commit the wrong thing.** A catch all staging step in a build script swept a 141 MB speech model into git history. The remote refused the push, the script reported the refusal as being offline, and the commits piled up locally until someone looked. Ignore generated and downloaded files before the first run, cap file size in anything that stages on its own, and never replace a real error with a guess.
 
 **Sanitize before the first commit, not after.** Publishing an environment writeup and cleaning it in a later commit leaves the original permanently recoverable in git history. The redaction has to happen before the repository exists.
 
@@ -212,6 +241,18 @@ The broader lesson is that monitoring can fail in a way that looks identical to 
 **Fix.** Truncated the file and turned that log output off.
 
 **What changed afterward.** The weekly health report flags any log directory over 2 GB. Rotation and hard size caps are still missing, which is why they are on the roadmap.
+
+### A service that crash looped for twelve days
+
+**Symptom.** The browser terminal on the control plane host refused connections after the hardware move.
+
+**Initial read.** There was not much to misread. The status dashboard listed the service as failing within days of the move, and it went on the open items list. It stayed there because nothing else depended on it.
+
+**Root cause.** Its login secret was one more keychain item that did not migrate. The start script could not read it and exited, the service supervisor started it again, and that repeated 96,499 times over twelve days.
+
+**Fix.** Created a new secret in the active keychain, restarted the service, and verified that it refuses a request without a login and accepts one with it, both locally and over the overlay.
+
+**What changed afterward.** Nothing structural yet, which is the honest answer. This is the fourth incident with the same shape, a missing or wrong secret followed by a quiet exit, and the third caused by the same migration. Loud failure on missing secrets stays on the roadmap, and restart counts belong in the weekly health report.
 
 ### Broadcast storm from a cabling loop
 
@@ -315,12 +356,13 @@ Ordered by value delivered rather than by how interesting the project is. The un
 | 1 | Second physical backup medium | Two copies on one drive is one failure away from zero |
 | 2 | Off site copy revived, with alerting | The existing off site job is dead, not merely absent |
 | 3 | Tested restore from both backup tools, plus the migration checklist as a runbook | The hardware move was a partial restore test, and it showed what does not come back |
-| 4 | Loud failure on missing secrets, log rotation and size caps | Three incidents shared the same quiet exit pattern |
+| 4 | Loud failure on missing secrets, log rotation and size caps | Four incidents shared the same quiet exit pattern |
 | 5 | Secrets vault | One keychain was a single point of failure for monitoring and backup at once |
-| 6 | Power protection with graceful shutdown integration | Unclean shutdown is the most common cause of hypervisor filesystem damage |
-| 7 | Centralised logging and DNS filtering | Fills the remaining service and operational gaps |
-| 8 | VLAN segmentation configuration | The switch already supports it. The prerequisite is the storage tier that justifies the boundary, not a hardware purchase. |
-| 9 | Multi node cluster, then multigig internal networking | Quorum and failover are the next learning step; multigig only once local transfers saturate Gigabit |
+| 6 | Boundaries for the nightly loop: its own operating system user, resource caps, branch protection, then pull requests | A rule without enforcement was set aside by hand on the day it was written |
+| 7 | Power protection with graceful shutdown integration | Unclean shutdown is the most common cause of hypervisor filesystem damage |
+| 8 | Centralised logging and DNS filtering | Fills the remaining service and operational gaps |
+| 9 | VLAN segmentation configuration | The switch and the access points both support it. Cameras and a doorbell on a flat network are now the reason, not a future storage tier. |
+| 10 | Multi node cluster, then multigig internal networking | Quorum and failover are the next learning step; multigig only once local transfers saturate Gigabit |
 
 Deliberately **not** on the roadmap: faster internet service. The internal network is the constraint, not the circuit, and buying bandwidth to solve a switching problem is how labs get expensive without getting better.
 
@@ -338,6 +380,7 @@ Deliberately **not** on the roadmap: faster internet service. The internal netwo
 | Migration and change management | Hardware move with rollback, and its writeup in [incidents](#incidents) |
 | Secrets handling | Vault over config files in [lessons learned](#lessons-learned) |
 | Automation with human approval gates | Propose and approve constraint in [Layer 3](#layer-3-knowledge-and-agent-orchestration) |
+| Guardrails for coding agents | Builder, cold reviewer, and human merge roles in [Layer 3](#layer-3-knowledge-and-agent-orchestration) |
 | Incident diagnosis | Root cause writeups in [incidents](#incidents) |
 | Technical documentation | This document, including the gaps it names |
 
